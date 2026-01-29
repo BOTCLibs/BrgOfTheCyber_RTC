@@ -1,84 +1,86 @@
 /*
   BrgOfTheCyber_RTC - BasicExample
-  Демонстрация основных функций библиотеки для работы с RTC модулем DS3231
-  
-  Подключение модуля DS3231 к Arduino:
-  VCC -> 5V
-  GND -> GND
-  SDA -> A4 (или SDA на других платах)
-  SCL -> A5 (или SCL на других платах)
+  Демонстрация работы с внутренними и внешними часами
 */
 
 #include <BrgOfTheCyber_RTC.h>
 
-// Создаем объект RTC
-BrgOfTheCyber_RTC rtc;
+// Создаем три разных экземпляра
+BrgOfTheCyber_RTC internalRTC;                    // Внутренние часы
+BrgOfTheCyber_RTC externalDS3231(RTC_DS3231);     // Внешний DS3231
+BrgOfTheCyber_RTC externalDS1307(RTC_DS1307, 0x68); // Внешний DS1307
 
 void setup() {
   Serial.begin(9600);
-  while (!Serial); // Для плат с USB-подключением
+  while (!Serial);
   
-  Serial.println("=== Библиотека BrgOfTheCyber_RTC ===");
+  Serial.println("=== Тестирование библиотеки BrgOfTheCyber_RTC ===");
   
-  // Инициализация RTC
-  if (!rtc.begin()) {
-    Serial.println("Ошибка: RTC модуль не найден!");
-    while (1);
+  // 1. Тестируем внутренние часы
+  Serial.println("\n1. ВНУТРЕННИЕ ЧАСЫ:");
+  if (internalRTC.begin()) {
+    internalRTC.setDateTimeFromCompileTime();
+    
+    Serial.print("Дата и время: ");
+    Serial.println(internalRTC.getDateTime());
+    
+    Serial.print("День недели: ");
+    Serial.println(internalRTC.getWeekdayString());
+    
+    Serial.print("Только время: ");
+    Serial.println(internalRTC.getTime());
+    
+    Serial.print("Только дата: ");
+    Serial.println(internalRTC.getDate());
+    
+    Serial.print("Время с эффектом тикания: ");
+    Serial.println(internalRTC.getTime(true));
   }
-  Serial.println("RTC модуль инициализирован.");
   
-  // Установка времени (раскомментируйте, чтобы установить время один раз)
-  // После установки закомментируйте эту строкю и загрузите скетч снова,
-  // чтобы время не сбрасывалось при каждом запуске.
-  // rtc.setDateTime(2025, 1, 1, 12, 0, 0); // 1 января 2025, 12:00:00
-  
-  Serial.println("Текущее время установлено.");
+  // 2. Тестируем внешний DS3231
+  Serial.println("\n2. ВНЕШНИЙ DS3231:");
+  if (externalDS3231.begin()) {
+    // Устанавливаем время только если часы остановлены
+    if (externalDS3231.lostPower()) {
+      externalDS3231.setDateTimeFromCompileTime();
+      Serial.println("Время установлено из времени компиляции");
+    }
+    
+    Serial.print("Дата и время: ");
+    Serial.println(externalDS3231.getDateTime());
+    
+    Serial.print("Температура DS3231: ");
+    Serial.print(externalDS3231.getTemperature());
+    Serial.println("°C");
+  } else {
+    Serial.println("DS3231 не найден!");
+  }
 }
 
 void loop() {
-  Serial.println("\n=== Информация с RTC ===");
+  static unsigned long lastUpdate = 0;
   
-  // 1. Вывод отдельных компонентов
-  Serial.print("Год: ");
-  Serial.println(rtc.getYear());
-  
-  Serial.print("Месяц: ");
-  Serial.println(rtc.getMonth());
-  
-  Serial.print("День: ");
-  Serial.println(rtc.getDay());
-  
-  Serial.print("Час: ");
-  Serial.println(rtc.getHour());
-  
-  Serial.print("Минута: ");
-  Serial.println(rtc.getMinute());
-  
-  Serial.print("Секунда: ");
-  Serial.println(rtc.getSecond());
-  
-  // 2. Форматированный вывод
-  Serial.print("Время (обычное): ");
-  Serial.println(rtc.getTime());
-  
-  Serial.print("Время (тик-так): ");
-  Serial.println(rtc.getTime(true)); // Эффект тикания
-  
-  Serial.print("Дата (день/месяц): ");
-  Serial.println(rtc.getToDay());
-  
-  Serial.print("Полная дата: ");
-  Serial.println(rtc.getDate());
-  
-  // 3. Пример создания собственного формата
-  Serial.print("\nПользовательский формат: ");
-  Serial.print(rtc.getDay());
-  Serial.print(".");
-  Serial.print(rtc.getMonth());
-  Serial.print(".");
-  Serial.print(rtc.getYear());
-  Serial.print(" ");
-  Serial.println(rtc.getTime());
-  
-  delay(5000); // Обновляем каждые 5 секунд
+  if (millis() - lastUpdate >= 1000) {
+    lastUpdate = millis();
+    
+    Serial.print("\nВнутренние часы: ");
+    Serial.print(internalRTC.getTime());
+    Serial.print(" | Внешние часы (DS3231): ");
+    Serial.print(externalDS3231.getTime());
+    
+    Serial.print(" | Разница: ");
+    int diff = abs(internalRTC.getHour() * 60 + internalRTC.getMinute() -
+                   externalDS3231.getHour() * 60 - externalDS3231.getMinute());
+    Serial.print(diff);
+    Serial.println(" минут");
+    
+    // Корректировка внутренних часов, если разница больше 1 минуты
+    if (diff > 1 && externalDS3231.isRunning()) {
+      Serial.println("Синхронизируем внутренние часы с внешними...");
+      internalRTC.setDateTime(
+        externalDS3231.getYear(), externalDS3231.getMonth(), externalDS3231.getDay(),
+        externalDS3231.getHour(), externalDS3231.getMinute(), externalDS3231.getSecond()
+      );
+    }
+  }
 }

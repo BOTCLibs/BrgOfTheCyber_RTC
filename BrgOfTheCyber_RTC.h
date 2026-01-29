@@ -2,59 +2,121 @@
 #define BrgOfTheCyber_RTC_h
 
 #include <Arduino.h>
-#include <Wire.h> // Для работы с I2C (большинство RTC модулей)
+#include <Wire.h>
+
+// Режимы работы библиотеки
+enum RTCMode {
+  RTC_INTERNAL,      // Использовать внутренние часы микроконтроллера
+  RTC_EXTERNAL_I2C   // Использовать внешний RTC модуль по I2C
+};
+
+// Типы поддерживаемых внешних RTC
+enum RTCType {
+  RTC_DS3231,        // Модуль DS3231 (по умолчанию)
+  RTC_DS1307,        // Модуль DS1307
+  RTC_PCF8563        // Модуль PCF8563
+};
 
 class BrgOfTheCyber_RTC {
   public:
-    // Конструктор. Можно указать адрес I2C (по умолчанию 0x68 для DS3231)
-    BrgOfTheCyber_RTC(uint8_t i2c_addr = 0x68);
+    // ===== КОНСТРУКТОРЫ =====
+    // Для внутренних часов (без параметров или с режимом)
+    BrgOfTheCyber_RTC();
+    BrgOfTheCyber_RTC(RTCMode mode);
     
-    // ===== 1. ИНИЦИАЛИЗАЦИЯ =====
-    // Инициализация библиотеки и проверка связи с модулем.
-    // Возвращает true, если модуль найден.
-    bool begin();
-
-    // ===== 2. УСТАНОВКА ВРЕМЕНИ =====
-    // Установка текущей даты и времени.
+    // Для внешних RTC модулей
+    BrgOfTheCyber_RTC(RTCType type, uint8_t i2c_address = 0x68);
+    BrgOfTheCyber_RTC(RTCMode mode, RTCType type, uint8_t i2c_address = 0x68);
+    
+    // ===== ИНИЦИАЛИЗАЦИЯ =====
+    bool begin(); // Инициализация библиотеки
+    
+    // ===== УСТАНОВКА ВРЕМЕНИ =====
     void setDateTime(uint16_t year, uint8_t month, uint8_t day,
                      uint8_t hour, uint8_t minute, uint8_t second);
-
-    // ===== 3. ФУНКЦИИ ЗАПРОСА =====
-    // 3.1 - 3.6: Получение отдельных компонентов
-    uint16_t getYear();   // Пример: 2025
-    uint8_t getMonth();   // Пример: 1
-    uint8_t getDay();     // Пример: 1
-    uint8_t getHour();    // Пример: 1
-    uint8_t getMinute();  // Пример: 1
-    uint8_t getSecond();  // Пример: 1
-
-    // 3.7 - 3.8: Получение времени в формате строки
-    String getTime(bool tickingEffect = false); // Пример: "00:01" или "00 01"
+    void setDateTimeFromCompileTime(); // Установить время из времени компиляции
     
-    // 3.9: Получение даты (день/месяц)
-    String getToDay(); // Пример: "01/01"
+    // ===== ФУНКЦИИ ЗАПРОСА (полный список) =====
+    uint16_t getYear();
+    uint8_t getMonth();
+    uint8_t getDay();
+    uint8_t getHour();
+    uint8_t getMinute();
+    uint8_t getSecond();
+    uint8_t getWeekday(); // День недели (1-7, 1=воскресенье)
     
-    // 3.10: Получение полной даты
-    String getDate(); // Пример: "01/01/2025"
+    // Форматированный вывод
+    String getTime(bool tickingEffect = false);
+    String getToDay();
+    String getDate();
+    String getDateTime(); // Полная дата и время
+    String getWeekdayString(); // Название дня недели
     
     // ===== ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ =====
-    // Получение всей даты и времени одной командой (оптимизация для DS3231)
-    void refreshDateTime();
+    // Только для внутренних часов
+    void adjustInternalClock(long adjustment_ms); // Корректировка внутренних часов
+    float getInternalDrift(); // Получить дрейф внутренних часов (мс/час)
     
-    // Проверка, является ли год високосным (внутренняя функция)
-    bool isLeapYear(uint16_t year);
-
+    // Только для внешних RTC
+    float getTemperature(); // Получить температуру (только для DS3231)
+    bool lostPower(); // Проверка потери питания (только для внешних RTC)
+    
+    // Общие функции
+    RTCMode getMode(); // Получить текущий режим работы
+    bool isRunning(); // Проверка, работают ли часы
+    void syncToExternal(RTCMode targetMode); // Синхронизация между режимами
+    
   private:
-    uint8_t _i2c_addr;
-    // Переменные для хранения последних прочитанных данных
-    uint16_t _year;
-    uint8_t _month, _day, _hour, _minute, _second;
+    // Переменные состояния
+    RTCMode _mode;
+    RTCType _type;
+    uint8_t _i2c_address;
+    bool _initialized;
     
-    // Функция для преобразования чисел в BCD формат (для отправки в RTC)
+    // Время в удобном формате
+    struct DateTime {
+      uint16_t year;
+      uint8_t month;
+      uint8_t day;
+      uint8_t hour;
+      uint8_t minute;
+      uint8_t second;
+      uint8_t weekday;
+    } _currentTime;
+    
+    // Для внутренних часов
+    unsigned long _lastMillis;
+    unsigned long _millisOffset;
+    float _driftFactor; // Коэффициент дрейфа
+    
+    // Для внешних RTC
+    uint8_t _readRegister(uint8_t reg);
+    void _writeRegister(uint8_t reg, uint8_t value);
+    
+    // Вспомогательные функции
     uint8_t _decToBcd(uint8_t val);
-    
-    // Функция для преобразования из BCD в обычное число (для чтения из RTC)
     uint8_t _bcdToDec(uint8_t val);
+    bool _isLeapYear(uint16_t year);
+    uint8_t _daysInMonth(uint16_t year, uint8_t month);
+    void _calculateWeekday();
+    void _updateFromInternal();
+    void _updateFromExternal();
+    void _saveToInternal();
+    void _saveToExternal();
+    void _normalizeTime();
+    unsigned long _dateTimeToEpoch();
+    void _epochToDateTime(unsigned long epoch);
+    
+    // Функции для разных типов RTC
+    void _initDS3231();
+    void _initDS1307();
+    void _initPCF8563();
+    void _readDS3231();
+    void _readDS1307();
+    void _readPCF8563();
+    void _writeDS3231();
+    void _writeDS1307();
+    void _writePCF8563();
 };
 
 #endif
