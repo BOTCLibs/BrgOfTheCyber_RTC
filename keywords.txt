@@ -1,0 +1,54 @@
+#######################################
+# Syntax Coloring Map For BrgOfTheCyber_RTC
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+BrgOfTheCyber_RTC KEYWORD1
+BrgOfTheCyber_RTC_Sys KEYWORD1
+RTCType KEYWORD1
+RTCMode KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+# Основные методы BrgOfTheCyber_RTC
+begin KEYWORD2
+setDateTime KEYWORD2
+getYear KEYWORD2
+getMonth KEYWORD2
+getDay KEYWORD2
+getHour KEYWORD2
+getMinute KEYWORD2
+getSecond KEYWORD2
+getTime KEYWORD2
+getToDay KEYWORD2
+getDate KEYWORD2
+getTemperature KEYWORD2
+lostPower KEYWORD2
+isRunning KEYWORD2
+
+# Основные методы BrgOfTheCyber_RTC_Sys
+setDateTimeFromCompile KEYWORD2
+getDateTime KEYWORD2
+adjustTime KEYWORD2
+
+# Конструкторы
+BrgOfTheCyber_RTC KEYWORD2
+BrgOfTheCyber_RTC_Sys KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+# Типы RTC модулей
+RTC_DS3231 LITERAL1
+RTC_DS1307 LITERAL1
+RTC_PCF8563 LITERAL1
+
+# Режимы работы (если используются)
+RTC_INTERNAL LITERAL1
+RTC_EXTERNAL_I2C LITERAL1
