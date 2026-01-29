@@ -1,27 +1,20 @@
-#ifndef BrgOfTheCyber_RTC_h
-#define BrgOfTheCyber_RTC_h
+#ifndef BrgOfTheCyber_RTC_Sys_h
+#define BrgOfTheCyber_RTC_Sys_h
 
 #include <Arduino.h>
-#include <Wire.h>
 
-// Поддерживаемые типы RTC
-enum RTCType {
-  RTC_DS3231,
-  RTC_DS1307,
-  RTC_PCF8563
-};
-
-class BrgOfTheCyber_RTC {
+class BrgOfTheCyber_RTC_Sys {
   public:
     // Конструктор
-    BrgOfTheCyber_RTC(RTCType type = RTC_DS3231, uint8_t i2c_address = 0x68);
+    BrgOfTheCyber_RTC_Sys();
     
     // Инициализация
-    bool begin();
+    void begin();
     
     // Установка времени
     void setDateTime(uint16_t year, uint8_t month, uint8_t day,
                      uint8_t hour, uint8_t minute, uint8_t second);
+    void setDateTimeFromCompile();
     
     // Получение времени
     uint16_t getYear();
@@ -35,33 +28,32 @@ class BrgOfTheCyber_RTC {
     String getTime(bool tickingEffect = false);
     String getToDay();
     String getDate();
+    String getDateTime();
     
     // Дополнительные функции
-    float getTemperature(); // Только для DS3231
-    bool lostPower();
-    bool isRunning();
+    void adjustTime(long adjustment_ms);
     
   private:
-    RTCType _type;
-    uint8_t _i2c_address;
-    
-    struct {
+    // Структура для хранения времени
+    struct DateTime {
       uint16_t year;
       uint8_t month;
       uint8_t day;
       uint8_t hour;
       uint8_t minute;
       uint8_t second;
-    } _time;
+    };
+    
+    DateTime _time;
+    unsigned long _lastUpdate;
     
     // Вспомогательные функции
-    uint8_t _decToBcd(uint8_t val);
-    uint8_t _bcdToDec(uint8_t val);
-    void _initRTC();
-    void _readRTC();
-    void _writeRTC();
-    uint8_t _readRegister(uint8_t reg);
-    void _writeRegister(uint8_t reg, uint8_t value);
+    bool _isLeapYear(uint16_t year);
+    uint8_t _daysInMonth(uint16_t year, uint8_t month);
+    void _normalizeTime();
+    unsigned long _dateTimeToSeconds();
+    void _secondsToDateTime(unsigned long seconds);
+    void _updateTime();
 };
 
 #endif
